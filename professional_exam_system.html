@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Professional Online Exam System</title>
+<style>
+*{box-sizing:border-box;font-family:Segoe UI,sans-serif}
+body{margin:0;background:linear-gradient(135deg,#0f172a,#1e40af);min-height:100vh}
+.screen{max-width:1000px;margin:30px auto;background:#fff;border-radius:18px;padding:25px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.hidden{display:none}
+h1,h2{margin-top:0}
+input{padding:12px;width:100%;border:1px solid #ccc;border-radius:8px}
+button{padding:12px 18px;border:none;border-radius:8px;cursor:pointer}
+.primary{background:#2563eb;color:#fff}
+.header{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.timer{background:#ef4444;color:#fff;padding:10px 18px;border-radius:999px;font-weight:bold}
+.progress{height:10px;background:#ddd;border-radius:999px;overflow:hidden;margin:15px 0}
+.progress div{height:100%;background:#2563eb;width:0%}
+.layout{display:grid;grid-template-columns:1fr 220px;gap:20px}
+.option{display:block;width:100%;margin:10px 0;padding:14px;border:2px solid #dbeafe;background:#f8fafc;text-align:left}
+.option.selected{background:#2563eb;color:#fff}
+.palette{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.palette button{padding:10px}
+.answered{background:#22c55e;color:#fff}
+.review{background:#f59e0b;color:#fff}
+.nav{display:flex;justify-content:space-between;margin-top:15px}
+.result-card{padding:12px;margin:8px 0;background:#f8fafc;border-radius:8px}
+@media(max-width:800px){.layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="login" class="screen">
+<h1>Online Examination System</h1>
+<input id="studentName" placeholder="Enter Student Name">
+<br><br>
+<button class="primary" onclick="startExam()">Start Exam</button>
+</div>
+
+<div id="exam" class="screen hidden">
+<div class="header">
+<h2 id="welcome"></h2>
+<div class="timer">Time: <span id="timer">30</span>s</div>
+</div>
+
+<div class="progress"><div id="bar"></div></div>
+
+<div class="layout">
+<div>
+<h3 id="qno"></h3>
+<h2 id="question"></h2>
+<div id="options"></div>
+
+<div class="nav">
+<button onclick="prevQ()">Previous</button>
+<div>
+<button onclick="markReview()">Review Later</button>
+<button class="primary" onclick="nextQ()">Next</button>
+</div>
+</div>
+</div>
+
+<div>
+<h3>Question Palette</h3>
+<div id="palette" class="palette"></div>
+</div>
+</div>
+</div>
+
+<div id="result" class="screen hidden"></div>
+
+<script>
+const questions=[
+{q:"HTML stands for?",o:["Hyper Text Markup Language","Home Tool Markup Language","High Text Machine Language","Hyper Tool Language"],a:0},
+{q:"CSS stands for?",o:["Creative Style Sheet","Cascading Style Sheets","Computer Style Sheets","Color Style Sheet"],a:1},
+{q:"Which tag creates a paragraph?",o:["p","h1","div","span"],a:0},
+{q:"JavaScript is mainly used for?",o:["Styling","Database","Interactivity","Hosting"],a:2},
+{q:"Which symbol is ID selector?",o:[".","#","*","@"],a:1},
+{q:"Which method shows alert?",o:["show()","popup()","alert()","msg()"],a:2},
+{q:"Which tag is used for image?",o:["img","image","pic","src"],a:0},
+{q:"Which company created JavaScript?",o:["Google","Netscape","Apple","IBM"],a:1},
+{q:"Which property changes text color?",o:["font-color","text-color","color","fg"],a:2},
+{q:"Which language runs in browser?",o:["Java","C++","Python","JavaScript"],a:3}
+];
+
+let current=0, answers=new Array(questions.length).fill(null),
+review=new Set(), time=30, interval, student="";
+
+function startExam(){
+ student=document.getElementById("studentName").value.trim();
+ if(!student){alert("Enter student name");return;}
+ document.getElementById("login").classList.add("hidden");
+ document.getElementById("exam").classList.remove("hidden");
+ document.getElementById("welcome").textContent="Student: "+student;
+ buildPalette();
+ loadQ();
+}
+
+function buildPalette(){
+ let p=document.getElementById("palette");
+ p.innerHTML="";
+ questions.forEach((_,i)=>{
+   let b=document.createElement("button");
+   b.textContent=i+1;
+   b.onclick=()=>{current=i;loadQ();};
+   b.id="p"+i;
+   p.appendChild(b);
+ });
+}
+
+function updatePalette(){
+ questions.forEach((_,i)=>{
+   let b=document.getElementById("p"+i);
+   b.className="";
+   if(answers[i]!==null)b.classList.add("answered");
+   if(review.has(i))b.classList.add("review");
+ });
+}
+
+function startTimer(){
+ clearInterval(interval);
+ time=30;
+ document.getElementById("timer").textContent=time;
+ interval=setInterval(()=>{
+   time--;
+   document.getElementById("timer").textContent=time;
+   if(time<=0) nextQ();
+ },1000);
+}
+
+function loadQ(){
+ startTimer();
+ let q=questions[current];
+ document.getElementById("qno").textContent=`Question ${current+1} of ${questions.length}`;
+ document.getElementById("question").textContent=q.q;
+ document.getElementById("bar").style.width=((current+1)/questions.length*100)+"%";
+ let box=document.getElementById("options");
+ box.innerHTML="";
+ q.o.forEach((op,i)=>{
+   let btn=document.createElement("button");
+   btn.className="option";
+   btn.textContent=op;
+   if(answers[current]===i) btn.classList.add("selected");
+   btn.onclick=()=>{
+      answers[current]=i;
+      loadQ();
+   };
+   box.appendChild(btn);
+ });
+ updatePalette();
+}
+
+function nextQ(){
+ clearInterval(interval);
+ if(current<questions.length-1){current++;loadQ();}
+ else submitExam();
+}
+
+function prevQ(){
+ if(current>0){current--;loadQ();}
+}
+
+function markReview(){
+ review.add(current);
+ updatePalette();
+ alert("Marked for review");
+}
+
+function submitExam(){
+ clearInterval(interval);
+ let score=0, analysis="";
+ questions.forEach((q,i)=>{
+   if(answers[i]===q.a) score++;
+   analysis += `<div class='result-card'>
+   <b>Q${i+1}:</b> ${q.q}<br>
+   Your Answer: ${answers[i]!==null?q.o[answers[i]]:"Not Answered"}<br>
+   Correct Answer: ${q.o[q.a]}
+   </div>`;
+ });
+
+ let percent=((score/questions.length)*100).toFixed(2);
+
+ document.getElementById("exam").classList.add("hidden");
+ document.getElementById("result").classList.remove("hidden");
+ document.getElementById("result").innerHTML=`
+ <h1>Exam Completed</h1>
+ <h2>${student}</h2>
+ <h2>Score: ${score}/${questions.length}</h2>
+ <h2>Percentage: ${percent}%</h2>
+ <h3>Answer Analysis</h3>
+ ${analysis}
+ <button class="primary" onclick="location.reload()">Restart</button>`;
+}
+</script>
+</body>
+</html>
